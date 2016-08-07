@@ -38,10 +38,22 @@ MD5SHA1
 ```
 
 *Note*: Hash size by default for each type in BYTE
+
 SHA256: 32 bytes
+
 SHA224: 28 bytes
+
 MD5: 16 bytes
+
 MD4: 16 bytes
+
 SHA512: 64 bytes
+
 SHA3_512: 64 bytes
+
 MD5SHA1: 36 bytes
+
+# License and Contact
+
+via (vnkeymaster@gmail.com)[mailto:vnkeymaster@gmail.com]
+License: http://www.wtfpl.net/txt/copying/
