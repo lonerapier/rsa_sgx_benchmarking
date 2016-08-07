@@ -26,14 +26,14 @@ oaep:
 	rsa_benchmarking -action 1 -ht "SHA256" -in bm_input/file_1kb.txt -out in/file_1kb_encrypted.txt -label "HCMUS-K25"
 	rsa_benchmarking -action 2 -ht "SHA256" -in in/file_1kb_encrypted.txt -out out/file_1kb_decrypted.txt -label "HCMUS-K25"
 
-	#1kb
+	#10kb
 	rsa_benchmarking -action 1 -ht "SHA256" -in bm_input/file_10kb.txt -out in/file_10kb_encrypted.txt -label "HCMUS-K25"
 	rsa_benchmarking -action 2 -ht "SHA256" -in in/file_10kb_encrypted.txt -out out/file_10kb_decrypted.txt -label "HCMUS-K25"
 
-	#1kb
+	#100kb
 	rsa_benchmarking -action 1 -ht "SHA256" -in bm_input/file_100kb.txt -out in/file_100kb_encrypted.txt -label "HCMUS-K25"
 	rsa_benchmarking -action 2 -ht "SHA256" -in in/file_100kb_encrypted.txt -out out/file_100kb_decrypted.txt -label "HCMUS-K25"
 
-	#1kb
+	#1mb
 	rsa_benchmarking -action 1 -ht "SHA256" -in bm_input/file_1mb.txt -out in/file_1mb_encrypted.txt -label "HCMUS-K25"
 	rsa_benchmarking -action 2 -ht "SHA256" -in in/file_1mb_encrypted.txt -out out/file_1mb_decrypted.txt -label "HCMUS-K25"
