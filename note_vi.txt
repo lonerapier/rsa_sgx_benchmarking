@@ -1,0 +1,52 @@
+Source code của nhóm được lưu trữ tại đường dẫn bên dưới. Để chạy được cần cài đặt golang (https://golang.org/dl/) và compile source code.
+https://github.com/keymastervn/rsa_benchmarking
+
+Các lệnh command line dùng để đo đạc được đặt trong Makefile. Trong phần demo này có 3 action chính:
+ - generate key
+ - encrypt
+ - decrypt
+
+Argument trong source demo rất rõ ràng, mọi người compiler ra và gõ rsa_benchmarking --help và đọc ghi chú có thể hiểu. Key được sinh ra có thể lưu được dưới dạng PEM (giống ssh key), mọi người có thể chia sẻ public key này cho người khác.
+
+Trong thư mục nhóm đã tạo sẵn các file để benchmark có các kích thước 1KB, 10KB, 100KB, 1MB, 10MB. Môi trường benchmark khi tiến hành demo:
+- MacOS 10.10.5
+- 1.6 GHz Intel Core i5
+- 4 GB 1600 MHz DDR3
+
+Test tạo khóa (đơn vị bit): 
+512 - 18.792194ms
+1024 - 71.771351ms
+2048 - 422.740479ms
+4096 - 2.11089116s
+
+Các phần test sau này nhóm dùng bộ rsa 4096 bit.
+Với một message nhỏ kết quả trả về là real-time, cho việc encrypt và decrypt với thời gian là microsecond.
+* Chuẩn PKCS (không Hash, không Label)
+Test encrypt file:
+1KB - 8.35111ms
+10KB - 27.827422ms
+100KB - 173.577891ms
+1MB - 1.517520835s
+
+Test decrypt file:
+1KB - 145.88742ms
+10KB - 911.608149ms
+100KB - 8.73165249s
+1MB - 1m26.37924981s
+
+* Chuẩn OAEP (Có Hash - nhóm chỉ test trên SHA256, Label là HCMUS-K25)
+Test encrypt file:
+1KB - 19.076208ms
+10KB - 31.211897ms
+100KB - 159.132847ms
+1MB - 1.397072011s
+
+Test decrypt file:
+1KB - 107.320058ms
+10KB - 873.58417ms
+100KB - 8.922868258s
+1MB - 1m27.265667261s
+
+Nhận xét: 
+- Để có thể mã hóa file cần tiến hành băm file thành dựa trên các segment, tốc độ sẽ cải thiện nếu segment xấp xỉ chiều dài của rsa Key.
+- RSA luôn có tốc độ kém khi mã hóa và giải mã các nội dung lớn.
