@@ -29,7 +29,7 @@ const (
 	PKCS = "PKCS"
 
 	// KeyHolder const
-	KeyHolder = "rsa_key/"
+	KeyHolder = "/rsa_key/"
 	// PublicKeyDir const
 	PublicKeyDir = KeyHolder + "key.pub"
 	// PrivateKeyDir const
@@ -37,11 +37,11 @@ const (
 	// SignatureDir const
 	SignatureDir = KeyHolder + "rsa.sig"
 	// TestFileHolder const
-	TestFileHolder = "bm_input"
+	TestFileHolder = "/bm_input"
 	// InFolder const
-	InFolder = "in"
+	InFolder = "/in"
 	// OutFolder const
-	OutFolder = "out"
+	OutFolder = "/out"
 )
 
 // HashingTable xxx
@@ -64,11 +64,13 @@ var (
 	fileSize    = flag.Int("size", 10000, "File size to encrypt")
 	keyLength   = flag.Int("kl", 4096, "Bit size for private key to be generated: 512, 1024, 2048...")
 	loops       = flag.Int("lp", 10, "loops for number of decryption")
-	encryptType = flag.String("et", "OAEP", "Encryption type using Hash or not: PKIP/OAEP")
+	encryptType = flag.String("et", "OAEP", "Encryption type using Hash or not: PKCS/OAEP")
 	hashType    = flag.String("ht", "sha256", "Hash type for OAEP encryption, see https://golang.org/pkg/crypto/#Hash")
 )
 
 func main() {
+	flag.Parse()
+
 	// logfile format: decrypt_keyLength_encryptType_hashType_loops
 	// logfile := fmt.Sprintf("./logs/decrypt_%d_%d_%s_%s_%d.txt", *fileSize, *keyLength, *encryptType, *hashType, *loops)
 	// f, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
@@ -78,9 +80,6 @@ func main() {
 	// defer f.Close()
 	// log.SetOutput(f)
 
-	flag.Parse()
-
-	fmt.Println(*fileSize)
 	inFile = fmt.Sprintf("%s/file_%d.txt", TestFileHolder, *fileSize)
 	encFile = fmt.Sprintf("%s/file_%d_encrypted.txt", InFolder, *fileSize)
 	decFile = fmt.Sprintf("%s/file_%d_encrypted.txt", OutFolder, *fileSize)
@@ -88,17 +87,17 @@ func main() {
 	// Time Start
 	startTime := time.Now()
 
-	executeSGX()
-	// generateInputFile()
-	// generateKey()
-	// encrypt()
-	// decrypt()
+	// executeSGX()
+	generateInputFile()
+	generateKey()
+	encrypt()
+	decrypt()
 
 	log.Println("finished, elapse: ", time.Since(startTime))
 }
 
 func executeSGX() {
-	cmd := exec.Command("/usr/local/go/bin/go", "test", "crypto/aes", "-bench", ".")
+	cmd := exec.Command("/usr/bin/go", "test", "crypto/aes", "-bench", ".")
 	// cmd.Stdin = strings.NewReader("some input")
 	var out bytes.Buffer
 	cmd.Stdout = &out
@@ -116,6 +115,7 @@ func generateInputFile() {
 		log.Fatalf("write inputput: %s", err)
 	}
 }
+
 func encrypt() {
 	log.Println("Encrypting File")
 	var data []byte

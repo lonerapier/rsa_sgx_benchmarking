@@ -1,4 +1,5 @@
 ################################# CONSTANTS ###################################
+ARCH_LIBDIR ?= /lib/$(shell $(CC) -dumpmachine)
 
 ENCLAVE_SIZE ?= 8G
 
@@ -36,12 +37,14 @@ RA_CLIENT_LINKABLE ?= 0
 rsa_benchmarking.manifest: rsa_benchmarking.manifest.template
 	gramine-manifest \
 		-Dlog_level=$(GRAMINE_LOG_LEVEL) \
+		-Dexecdir=$(shell dirname $(shell which bash)) \
 		-Drsa_bin="./rsa_benchmarking" \
 		-Dentrypoint="./rsa_benchmarking" \
 		-Dra_type=$(RA_TYPE) \
 		-Dra_client_spid=$(RA_CLIENT_SPID) \
 		-Dra_client_linkable=$(RA_CLIENT_LINKABLE) \
 		-Denclave_size=$(ENCLAVE_SIZE) \
+		-Darch_libdir=$(ARCH_LIBDIR) \
 		$< >$@
 
 rsa_benchmarking.manifest.sgx rsa_benchmarking.sig: sgx_sign
@@ -59,28 +62,28 @@ rsa_benchmarking.token: rsa_benchmarking.sig
 ################################# RSA BENCHMARK COMMANDS ###################################
 pkcs:
 	# 1kb
-	# ./rsa_benchmarking -size 1000 -et $(ET) -lp $(LOOP) -kl $(KEY_LEN)
+	./rsa_benchmarking -size 1000 -et $(ET) -lp $(LOOP) -kl $(KEY_LEN)
 
 	# 10kb
 	./rsa_benchmarking -size 10000 -et $(ET) -lp $(LOOP) -kl $(KEY_LEN)
 
 	# 100kb
-	# ./rsa_benchmarking -size 100000 -et $(ET) -lp $(LOOP) -kl $(KEY_LEN)
+	./rsa_benchmarking -size 100000 -et $(ET) -lp $(LOOP) -kl $(KEY_LEN)
 
 	# 1mb
-	# ./rsa_benchmarking -size 1000000 -et $(ET) -lp $(LOOP) -kl $(KEY_LEN)
+	./rsa_benchmarking -size 1000000 -et $(ET) -lp $(LOOP) -kl $(KEY_LEN)
 
 oaep:
-	# #1kb
+	# 1kb
 	# ./rsa_benchmarking -ht $(HASH) -size 1000 -label "HCMUS-K25" -et $(ET) -lp $(LOOP) -kl $(KEY_LEN)
 
-	#10kb
+	# 10kb
 	./rsa_benchmarking -ht $(HASH) -size 10000 -label "HCMUS-K25" -et $(ET) -lp $(LOOP) -kl $(KEY_LEN)
 
-	# #100kb
+	# 100kb
 	# ./rsa_benchmarking -ht $(HASH) -size 100000 -label "HCMUS-K25" -et $(ET) -lp $(LOOP) -kl $(KEY_LEN)
 
-	# #1mb
+	# 1mb
 	# ./rsa_benchmarking -ht $(HASH) -size 1000000 -label "HCMUS-K25" -et $(ET) -lp $(LOOP) -kl $(KEY_LEN)
 
 ##################################### CLEANUP ########################################

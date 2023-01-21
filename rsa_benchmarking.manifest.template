@@ -52,7 +52,6 @@ fs.mounts = [
   { type = "tmpfs", path = "/bm_input", uri = "file:/home/ubuntu/rsa_benchmarking/bm_input" },
   { type = "tmpfs", path = "/logs", uri = "file:/home/ubuntu/rsa_benchmarking/logs" },
   { type = "tmpfs", path = "/rsa_key", uri = "file:/home/ubuntu/rsa_benchmarking/rsa_key" },
-  { path = "/helloworld", uri = "file:helloworld" },
 ]
 
 ############################### SGX: GENERAL ##################################
@@ -95,7 +94,6 @@ sgx.trusted_files = [
   "file:{{ gramine.libos }}",
   "file:{{ rsa_bin }}",
   "file:{{ gramine.runtimedir() }}/",
-  "file:helloworld",
   "file:/etc/ssl/certs/ca-certificates.crt",
 ]
 
