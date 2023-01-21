@@ -24,3 +24,15 @@ _testmain.go
 *.prof
 *.DS_Store
 
+# Project related files
+rsa_key/
+
+# sgx files
+rsa_benchmarking
+rsa_benchmarking.manifest
+rsa_benchmarking.manifest.sgx
+
+*.sig
+*.token
+
+
