@@ -1,0 +1,18 @@
+Gramine is starting. Parsing TOML manifest file, this may take some time...
+-----------------------------------------------------------------------------------------------------------------------
+Gramine detected the following insecure configurations:
+
+  - loader.insecure__use_cmdline_argv = true   (forwarding command-line args from untrusted host to the app)
+  - sgx.allowed_files = [ ... ]                (some files are passed through from untrusted host without verification)
+
+Gramine will continue application execution, but this configuration must not be used in production!
+-----------------------------------------------------------------------------------------------------------------------
+
+Emulating a raw syscall instruction. This degrades performance, consider patching your application to use Gramine syscall API.
+2023/01/19 22:04:01 Generating Keys...
+2023/01/19 22:09:10 Encrypting File
+2023/01/19 22:09:10 Decrypting file
+2023/01/19 22:09:10 File Size: 20480 Encrypt: OAEP Hash: SHA256 Key Size: 16384 Loops: 1
+2023/01/19 22:09:15 loop 0 : 4.937635s
+2023/01/19 22:09:15 Decryption Time:  4.937772s
+2023/01/19 22:09:15 finished, elapse:  5m14.790375s

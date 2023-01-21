@@ -1,0 +1,8 @@
+1000
+2023/01/19 22:36:17 Generating Keys...
+2023/01/19 22:41:33 Encrypting File
+2023/01/19 22:41:33 Decrypting file
+2023/01/19 22:41:33 Encrypted File Size: 2048 Encrypt: OAEP Hash: SHA256 Key Size: 16384 Loops: 1
+2023/01/19 22:41:34 loop 0 : 489.981ms
+2023/01/19 22:41:34 Decryption Time:  490.022ms
+2023/01/19 22:41:34 finished, elapse:  5m17.212584s
