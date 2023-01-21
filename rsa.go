@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"crypto"
 	"crypto/rand"
 	"crypto/rsa"
@@ -8,8 +9,10 @@ import (
 	"encoding/pem"
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
+	mrand "math/rand"
+	"os"
+	"os/exec"
 	"strings"
 	"time"
 )
@@ -19,8 +22,6 @@ const (
 	Encrypt = 1
 	// Decrypt const
 	Decrypt = 2
-	// GenerateKey const
-	GenerateKey = 3
 
 	// OAEP const
 	OAEP = "OAEP"
@@ -36,11 +37,11 @@ const (
 	// SignatureDir const
 	SignatureDir = KeyHolder + "rsa.sig"
 	// TestFileHolder const
-	TestFileHolder = "bm_input/"
+	TestFileHolder = "bm_input"
 	// InFolder const
-	InFolder = "in/"
+	InFolder = "in"
 	// OutFolder const
-	OutFolder = "out/"
+	OutFolder = "out"
 )
 
 // HashingTable xxx
@@ -56,75 +57,200 @@ var HashingTable = map[string]crypto.Hash{
 
 // Command-line flags
 var (
-	inFile  = flag.String("in", "in.txt", "Path to input file")
-	outFile = flag.String("out", "out.txt", "Path to output file")
-	label   = flag.String("label", "", "Label to use (filename by default)")
-	action  = flag.Int("action", 1, "Encrypt = 1. Decrypt = 2. Generate Key = 3")
-
-	keyLength   = flag.Int("kl", 2048, "Bit size for private key to be generated: 512, 1024, 2048...")
+	inFile      = "in.txt"
+	encFile     = "enc.txt"
+	decFile     = "out.txt"
+	label       = flag.String("label", "", "Label to use (filename by default)")
+	fileSize    = flag.Int("size", 10000, "File size to encrypt")
+	keyLength   = flag.Int("kl", 4096, "Bit size for private key to be generated: 512, 1024, 2048...")
+	loops       = flag.Int("lp", 10, "loops for number of decryption")
 	encryptType = flag.String("et", "OAEP", "Encryption type using Hash or not: PKIP/OAEP")
 	hashType    = flag.String("ht", "sha256", "Hash type for OAEP encryption, see https://golang.org/pkg/crypto/#Hash")
 )
 
 func main() {
+	// logfile format: decrypt_keyLength_encryptType_hashType_loops
+	// logfile := fmt.Sprintf("./logs/decrypt_%d_%d_%s_%s_%d.txt", *fileSize, *keyLength, *encryptType, *hashType, *loops)
+	// f, err := os.OpenFile(logfile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	// if err != nil {
+	// 	log.Fatalf("error opening file: %v", err)
+	// }
+	// defer f.Close()
+	// log.SetOutput(f)
+
 	flag.Parse()
+
+	fmt.Println(*fileSize)
+	inFile = fmt.Sprintf("%s/file_%d.txt", TestFileHolder, *fileSize)
+	encFile = fmt.Sprintf("%s/file_%d_encrypted.txt", InFolder, *fileSize)
+	decFile = fmt.Sprintf("%s/file_%d_encrypted.txt", OutFolder, *fileSize)
 
 	// Time Start
 	startTime := time.Now()
+
+	executeSGX()
+	// generateInputFile()
+	// generateKey()
+	// encrypt()
+	// decrypt()
+
+	log.Println("finished, elapse: ", time.Since(startTime))
+}
+
+func executeSGX() {
+	cmd := exec.Command("/usr/local/go/bin/go", "test", "crypto/aes", "-bench", ".")
+	// cmd.Stdin = strings.NewReader("some input")
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	err := cmd.Run()
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("in all caps: %s\n", out.String())
+}
+
+func generateInputFile() {
+	data := make([]byte, *fileSize)
+	mrand.Read(data)
+	if err := os.WriteFile(inFile, data, 0644); err != nil {
+		log.Fatalf("write inputput: %s", err)
+	}
+}
+func encrypt() {
+	log.Println("Encrypting File")
 	var data []byte
 
-	switch *action {
-	case GenerateKey:
-		if *keyLength < 8 {
-			log.Fatalf("Sorry, key length should be greater than 8 bit")
+	segment := getPublicKeyLength() / 8
+	hash := HashingTable[strings.ToUpper(*hashType)]
+	var start, end int
+
+	// preventing message too long
+	if segment < 2*hash.Size()+2 {
+		log.Fatalf("your key length is too short, minimum recommend: %d", 2*hash.Size()+2)
+	}
+
+	in, _, publicKey := prepareCrypto(inFile)
+	if *label == "" {
+		*label = inFile
+	}
+
+	switch strings.ToUpper(*encryptType) {
+	case OAEP:
+		for i := range in {
+			start = i * segment / 2
+			if start+segment/2 < len(in) {
+				end = start + segment/2
+			} else {
+				end = len(in)
+			}
+			log.Println("start, end", start, end)
+			byteSequence := in[start:end]
+
+			segmentEncrypt, err := rsa.EncryptOAEP(hash.New(), rand.Reader, publicKey, byteSequence, []byte(*label))
+			if err != nil {
+				log.Fatalf("oaep encrypt: %s", err)
+			}
+			data = append(data, segmentEncrypt...)
+
+			if end == len(in) {
+				break
+			}
 		}
-		privateKey, err := rsa.GenerateKey(rand.Reader, *keyLength)
-		if err != nil {
-			log.Fatalf("generate key: %s", err)
+	case PKCS:
+		for i := range in {
+			start = i * segment / 2
+			if start+segment/2 < len(in) {
+				end = start + segment/2
+			} else {
+				end = len(in)
+			}
+			byteSequence := in[start:end]
+
+			segmentEncrypt, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, byteSequence)
+			if err != nil {
+				log.Fatalf("pkcs encrypt: %s", err)
+			}
+			data = append(data, segmentEncrypt...)
+
+			if end == len(in) {
+				break
+			}
 		}
+	}
 
-		publicKey := &privateKey.PublicKey
+	// Write data to input file
+	if err := os.WriteFile(encFile, data, 0644); err != nil {
+		log.Fatalf("write inputput: %s", err)
+	}
+}
 
-		saveKey(privateKey, publicKey)
+func generateKey() {
+	log.Println("Generating Keys...")
+	if *keyLength < 8 {
+		log.Fatalf("Sorry, key length should be greater than 8 bit")
+	}
+	privateKey, err := rsa.GenerateKey(rand.Reader, *keyLength)
+	if err != nil {
+		log.Fatalf("generate key: %s", err)
+	}
 
-	case Decrypt:
-		segment := getPublicKeyLength() / 8
-		hash := HashingTable[strings.ToUpper(*hashType)]
-		var start, end int
-		// preventing message too long
-		if segment < 2*hash.Size()+2 {
-			log.Fatalf("your key length is too short, minimum recommend: %d", 2*hash.Size()+2)
-		}
+	publicKey := &privateKey.PublicKey
 
-		in, privateKey, _ := prepareCrypto(*inFile)
-		if *label == "" {
-			*label = *outFile
-		}
+	saveKey(privateKey, publicKey)
+}
 
-		switch strings.ToUpper(*encryptType) {
-		case OAEP:
+func decrypt() {
+	log.Println("Decrypting file")
+	var data []byte
 
-			for i := range in {
+	segment := getPublicKeyLength() / 8
+	log.Println("Segment", segment)
+	hash := HashingTable[strings.ToUpper(*hashType)]
+	var start, end int
+	// preventing message too long
+	if segment < 2*hash.Size()+2 {
+		log.Fatalf("your key length is too short, minimum recommend: %d", 2*hash.Size()+2)
+	}
+
+	in, privateKey, _ := prepareCrypto(encFile)
+	if *label == "" {
+		*label = decFile
+	}
+	log.Println("Encrypted File Size:", len(in), "Encrypt:", *encryptType, "Hash:", *hashType, "Key Size:", *keyLength, "Loops:", *loops)
+
+	decryptTime := time.Now()
+	switch strings.ToUpper(*encryptType) {
+	case OAEP:
+		for x := 0; x < *loops; x++ {
+			input := make([]byte, len(in))
+			copy(input, in)
+			loopStartTime := time.Now()
+			for i := range input {
 				start = i * segment
-				if start+segment < len(in) {
+				if start+segment < len(input) {
 					end = start + segment
 				} else {
-					end = len(in)
+					end = len(input)
 				}
-				segmentEncrypt := in[start:end]
+				segmentEncrypt := input[start:end]
 				segmentDecrypt, err := rsa.DecryptOAEP(hash.New(), rand.Reader, privateKey, segmentEncrypt, []byte(*label))
 				if err != nil {
 					log.Fatalf("oaep decrypt: %s, start %d, end %d", err, start, end)
 				}
 				data = append(data, segmentDecrypt...)
 
-				if end == len(in) {
+				if end == len(input) {
 					break
 				}
 			}
-		case PKCS:
-
-			for i := range in {
+			log.Println("loop", x, ":", time.Since(loopStartTime))
+		}
+	case PKCS:
+		for x := 0; x < *loops; x++ {
+			input := make([]byte, len(in))
+			copy(input, in)
+			loopStartTime := time.Now()
+			for i := range input {
 				start = i * segment
 				if start+segment < len(in) {
 					end = start + segment
@@ -142,80 +268,15 @@ func main() {
 					break
 				}
 			}
-		}
-
-		// Write data to output file
-		if err := ioutil.WriteFile(*outFile, data, 0644); err != nil {
-			log.Fatalf("write output: %s", err)
-		}
-
-	case Encrypt:
-		segment := getPublicKeyLength() / 8
-		hash := HashingTable[strings.ToUpper(*hashType)]
-		var start, end int
-
-		// preventing message too long
-		if segment < 2*hash.Size()+2 {
-			log.Fatalf("your key length is too short, minimum recommend: %d", 2*hash.Size()+2)
-		}
-
-		in, _, publicKey := prepareCrypto(*inFile)
-		if *label == "" {
-			*label = *inFile
-		}
-
-		switch strings.ToUpper(*encryptType) {
-		case OAEP:
-
-			for i := range in {
-				start = i * segment / 2
-				if start+segment/2 < len(in) {
-					end = start + segment/2
-				} else {
-					end = len(in)
-				}
-				byteSequence := in[start:end]
-
-				segmentEncrypt, err := rsa.EncryptOAEP(hash.New(), rand.Reader, publicKey, byteSequence, []byte(*label))
-				if err != nil {
-					log.Fatalf("oaep encrypt: %s", err)
-				}
-				data = append(data, segmentEncrypt...)
-
-				if end == len(in) {
-					break
-				}
-			}
-		case PKCS:
-
-			for i := range in {
-				start = i * segment / 2
-				if start+segment/2 < len(in) {
-					end = start + segment/2
-				} else {
-					end = len(in)
-				}
-				byteSequence := in[start:end]
-
-				segmentEncrypt, err := rsa.EncryptPKCS1v15(rand.Reader, publicKey, byteSequence)
-				if err != nil {
-					log.Fatalf("pkcs encrypt: %s", err)
-				}
-				data = append(data, segmentEncrypt...)
-
-				if end == len(in) {
-					break
-				}
-			}
-		}
-
-		// Write data to input file
-		if err := ioutil.WriteFile(*outFile, data, 0644); err != nil {
-			log.Fatalf("write inputput: %s", err)
+			log.Println("loop ", x, ": ", time.Since(loopStartTime))
 		}
 	}
+	log.Println("Decryption Time: ", time.Since(decryptTime))
 
-	fmt.Println("finished, elapse: ", time.Since(startTime))
+	// Write data to output file
+	if err := os.WriteFile(decFile, data, 0644); err != nil {
+		log.Fatalf("write output: %s", err)
+	}
 }
 
 func saveKey(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) {
@@ -225,20 +286,25 @@ func saveKey(privateKey *rsa.PrivateKey, publicKey *rsa.PublicKey) {
 			Bytes: x509.MarshalPKCS1PrivateKey(privateKey),
 		},
 	)
-	ioutil.WriteFile(PrivateKeyDir, privBytes, 0644)
+	err := os.WriteFile(PrivateKeyDir, privBytes, 0644)
+	if err != nil {
+		log.Fatalf("write output: %s", err)
+	}
 
 	PubASN1, _ := x509.MarshalPKIXPublicKey(publicKey)
 	pubBytes := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PUBLIC KEY",
 		Bytes: PubASN1,
 	})
-	ioutil.WriteFile(PublicKeyDir, pubBytes, 0644)
+	err = os.WriteFile(PublicKeyDir, pubBytes, 0644)
+	if err != nil {
+		log.Fatalf("write output: %s", err)
+	}
 }
 
 func getRSAKey() (*rsa.PrivateKey, *rsa.PublicKey) {
-
 	var block *pem.Block
-	pemPrivateData, _ := ioutil.ReadFile(PrivateKeyDir)
+	pemPrivateData, _ := os.ReadFile(PrivateKeyDir)
 
 	// Extract the PEM-encoded data block
 	block, _ = pem.Decode(pemPrivateData)
@@ -256,7 +322,7 @@ func getRSAKey() (*rsa.PrivateKey, *rsa.PublicKey) {
 	}
 
 	// Public Key can be get from &privKey.PublicKey
-	pemPubData, _ := ioutil.ReadFile(PublicKeyDir)
+	pemPubData, _ := os.ReadFile(PublicKeyDir)
 
 	// Extract the PEM-encoded data block
 	block, _ = pem.Decode(pemPubData)
@@ -278,7 +344,7 @@ func getRSAKey() (*rsa.PrivateKey, *rsa.PublicKey) {
 
 func prepareCrypto(filename string) ([]byte, *rsa.PrivateKey, *rsa.PublicKey) {
 	// Read the input file
-	in, err := ioutil.ReadFile(filename)
+	in, err := os.ReadFile(filename)
 	if err != nil {
 		log.Fatalf("input file: %s", err)
 	}
@@ -288,7 +354,7 @@ func prepareCrypto(filename string) ([]byte, *rsa.PrivateKey, *rsa.PublicKey) {
 }
 
 func getPublicKeyLength() int {
-	pemPrivData, _ := ioutil.ReadFile(PrivateKeyDir)
+	pemPrivData, _ := os.ReadFile(PrivateKeyDir)
 	block, _ := pem.Decode(pemPrivData)
 
 	privKey, _ := x509.ParsePKCS1PrivateKey(block.Bytes)
